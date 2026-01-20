@@ -1,10 +1,10 @@
 # Implementation Tasks
 
-- [ ] 1. Project Setup & Runnable Baseline
-  - [ ] 1.1 Create v2/ folder structure with all __init__.py files
-  - [ ] 1.2 Create v2/run.py with basic Streamlit app (title, text input for symbol)
-  - [ ] 1.3 Create requirements_v2.txt with all dependencies
-  - [ ] 1.4 TEST: Run `streamlit run v2/run.py` - should show empty dashboard with input field
+- [x] 1. Project Setup & Runnable Baseline
+  - [x] 1.1 Create v2/ folder structure with all __init__.py files
+  - [x] 1.2 Create v2/run.py with basic Streamlit app (title, text input for symbol)
+  - [x] 1.3 Create requirements_v2.txt with all dependencies
+  - [x] 1.4 TEST: Run `streamlit run v2/run.py` - should show empty dashboard with input field
 
 - [ ] 2. Price Data Service (yfinance)
   - [ ] 2.1 Create v2/data/price_service.py with `fetch_price_data(symbol, days=60)`

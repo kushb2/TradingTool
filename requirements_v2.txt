@@ -1,0 +1,15 @@
+# Institutional Footprint Detector v2 - Dependencies
+
+# Data Ingestion
+yfinance>=0.2.36      # Fast OHLC Price History
+nselib>=0.1.0         # NSE Delivery Percentage Data
+requests>=2.31.0      # Fallback connectivity
+
+# Logic & Calculation
+pandas>=2.2.0         # Dataframe operations
+numpy>=1.26.0         # Vectorized math
+pandas_ta>=0.3.14b    # Technical Analysis (RSI, SMA, VWAP)
+
+# Dashboard & UI
+streamlit>=1.31.0     # Web Interface
+plotly>=5.18.0        # Interactive Charts
