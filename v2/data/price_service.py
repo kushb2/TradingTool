@@ -70,7 +70,8 @@ def fetch_price_data(symbol: str, days: int = fetch_price_data_days) -> pd.DataF
     
     # Keep only the columns we need
     df = df[["Date", "Open", "High", "Low", "Close", "Volume"]]
-    
+
+
     # Convert Date to date only (remove time component)
     df["Date"] = pd.to_datetime(df["Date"]).dt.date
     
