@@ -6,8 +6,8 @@
   - [x] 1.3 Create requirements_v2.txt with all dependencies
   - [x] 1.4 TEST: Run `streamlit run v2/run.py` - should show empty dashboard with input field
 
-- [ ] 2. Price Data Service (yfinance)
-  - [ ] 2.1 Create v2/data/price_service.py with `fetch_price_data(symbol, days=60)`
+- [-] 2. Price Data Service (yfinance)
+  - [x] 2.1 Create v2/data/price_service.py with `fetch_price_data(symbol, days=60)`
   - [ ] 2.2 Update dashboard to call price_service and display raw DataFrame
   - [ ] 2.3 TEST: Enter "RELIANCE.NS" - should show 60 days of OHLC data in table
 
