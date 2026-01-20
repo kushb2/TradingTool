@@ -10,10 +10,12 @@ import pandas as pd
 
 from v2.constants.constants import popular_stocks
 from v2.data.price_service import fetch_raw_price_data, fetch_price_data
-from v2.data.alphavantage_service import (
-    fetch_earnings_calendar,
+from v2.data.earnings_service import (
+    fetch_next_earnings_date,
     fetch_earnings_history,
-    fetch_company_overview
+    fetch_company_info,
+    fetch_earnings_with_performance,
+    fetch_all_earnings_summary
 )
 
 # Page config
@@ -33,7 +35,7 @@ with st.sidebar:
     show_raw_data = st.checkbox("Show Raw Data (Debug)", value=False, 
                                  help="Display unprocessed data from yfinance for debugging")
 
-# Stock input
+# Stock input section
 st.subheader("Select Stocks for Analysis")
 
 # Multiselect dropdown for popular stocks
@@ -45,8 +47,8 @@ selected_stocks = st.multiselect(
 # Text input for additional stocks
 additional_stocks_str = st.text_input(
     "Or enter comma-separated stock symbols:",
-    placeholder="e.g., NETWEB, UNOMINDA, IBM, AAPL",
-    help="Enter stock symbols (NSE without .NS suffix, US stocks as-is)"
+    placeholder="e.g., NETWEB, UNOMINDA, TCS, RELIANCE",
+    help="Enter NSE stock symbols without .NS suffix"
 )
 
 # Combine and process stocks
@@ -55,20 +57,23 @@ if additional_stocks_str:
     additional_stocks = [s.strip().upper() for s in additional_stocks_str.split(',') if s.strip()]
     all_stocks = list(set(all_stocks + additional_stocks))
 
-# Analysis button
-if st.button("Analyze Stocks"):
-    if all_stocks:
-        st.info(f"Analyzing {len(all_stocks)} stock(s): {', '.join(all_stocks)}")
-        st.write("---")
-        
-        for symbol in all_stocks:
-            st.subheader(f"📈 {symbol}")
+st.write("---")
+
+# Main tabs - separate views for different analysis
+main_tab_analysis, main_tab_earnings = st.tabs(["📊 Stock Analysis", "📅 Earnings Calendar"])
+
+# ============================================
+# TAB 1: Stock Analysis (Price Data)
+# ============================================
+with main_tab_analysis:
+    if st.button("🔍 Analyze Stocks", key="analyze_btn"):
+        if all_stocks:
+            st.info(f"Analyzing {len(all_stocks)} stock(s): {', '.join(all_stocks)}")
+            st.write("---")
             
-            # Create tabs for different data views
-            tab_price, tab_earnings = st.tabs(["📊 Price Data", "📅 Earnings"])
-            
-            # TAB 1: Price Data
-            with tab_price:
+            for symbol in all_stocks:
+                st.subheader(f"📈 {symbol}")
+                
                 with st.spinner(f"Fetching price data for {symbol}..."):
                     price_df = fetch_price_data(symbol)
                 
@@ -85,121 +90,139 @@ if st.button("Analyze Stocks"):
                     
                     # Show processed price data
                     st.dataframe(price_df, use_container_width=True)
-            
-            # TAB 2: Earnings Data (Alpha Vantage)
-            with tab_earnings:
-                st.caption("📌 Earnings data from Alpha Vantage (US stocks only, 25 requests/day limit)")
                 
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    # Next Earnings Date
-                    st.markdown("#### 📅 Next Earnings Date")
-                    with st.spinner("Fetching earnings calendar..."):
-                        calendar_df = fetch_earnings_calendar(symbol, horizon="12month")
-                    
-                    if calendar_df.empty:
-                        st.warning("No upcoming earnings data found. This may be an NSE stock (Alpha Vantage covers US stocks).")
-                    else:
-                        # Show next earnings date prominently
-                        if len(calendar_df) > 0:
-                            next_earnings = calendar_df.iloc[0]
-                            st.metric(
-                                label="Report Date",
-                                value=next_earnings.get("reportDate", "N/A")
-                            )
-                            st.write(f"**Fiscal Quarter:** {next_earnings.get('fiscalDateEnding', 'N/A')}")
-                            st.write(f"**EPS Estimate:** {next_earnings.get('estimate', 'N/A')}")
-                        
-                        # Show full calendar
-                        with st.expander("View All Upcoming Earnings", expanded=False):
-                            st.dataframe(calendar_df, use_container_width=True)
-                            
-                            # Download button for earnings calendar
-                            csv_calendar = calendar_df.to_csv(index=False)
-                            st.download_button(
-                                label="📥 Download Earnings Calendar (CSV)",
-                                data=csv_calendar,
-                                file_name=f"{symbol}_earnings_calendar.csv",
-                                mime="text/csv"
-                            )
-                
-                with col2:
-                    # Historical EPS
-                    st.markdown("#### 📊 EPS History")
-                    with st.spinner("Fetching earnings history..."):
-                        earnings_data = fetch_earnings_history(symbol)
-                    
-                    if not earnings_data or earnings_data.get("quarterly", pd.DataFrame()).empty:
-                        st.warning("No earnings history found.")
-                    else:
-                        quarterly_df = earnings_data.get("quarterly", pd.DataFrame())
-                        
-                        if not quarterly_df.empty:
-                            # Show last 4 quarters
-                            recent_quarters = quarterly_df.head(4)
-                            
-                            # Display key metrics
-                            for _, row in recent_quarters.iterrows():
-                                fiscal_date = row.get("fiscalDateEnding", "N/A")
-                                reported_eps = row.get("reportedEPS", "N/A")
-                                estimated_eps = row.get("estimatedEPS", "N/A")
-                                surprise_pct = row.get("surprisePercentage", "N/A")
-                                
-                                # Color code surprise
-                                try:
-                                    surprise_val = float(surprise_pct)
-                                    if surprise_val > 0:
-                                        surprise_color = "🟢"
-                                    elif surprise_val < 0:
-                                        surprise_color = "🔴"
-                                    else:
-                                        surprise_color = "⚪"
-                                except:
-                                    surprise_color = "⚪"
-                                
-                                st.write(f"**{fiscal_date}:** EPS {reported_eps} (Est: {estimated_eps}) {surprise_color} {surprise_pct}%")
-                            
-                            # Show full history
-                            with st.expander("View Full EPS History", expanded=False):
-                                st.dataframe(quarterly_df, use_container_width=True)
-                                
-                                # Download button for EPS history
-                                csv_eps = quarterly_df.to_csv(index=False)
-                                st.download_button(
-                                    label="📥 Download EPS History (CSV)",
-                                    data=csv_eps,
-                                    file_name=f"{symbol}_eps_history.csv",
-                                    mime="text/csv"
-                                )
-                
-                # Company Overview (optional)
-                with st.expander("🏢 Company Overview", expanded=False):
-                    with st.spinner("Fetching company overview..."):
-                        overview = fetch_company_overview(symbol)
-                    
-                    if not overview:
-                        st.warning("No company overview found.")
-                    else:
-                        col_a, col_b, col_c = st.columns(3)
-                        
-                        with col_a:
-                            st.write(f"**Name:** {overview.get('Name', 'N/A')}")
-                            st.write(f"**Sector:** {overview.get('Sector', 'N/A')}")
-                            st.write(f"**Industry:** {overview.get('Industry', 'N/A')}")
-                        
-                        with col_b:
-                            st.write(f"**Market Cap:** {overview.get('MarketCapitalization', 'N/A')}")
-                            st.write(f"**P/E Ratio:** {overview.get('PERatio', 'N/A')}")
-                            st.write(f"**EPS:** {overview.get('EPS', 'N/A')}")
-                        
-                        with col_c:
-                            st.write(f"**52W High:** {overview.get('52WeekHigh', 'N/A')}")
-                            st.write(f"**52W Low:** {overview.get('52WeekLow', 'N/A')}")
-                            st.write(f"**200 DMA:** {overview.get('200DayMovingAverage', 'N/A')}")
-            
-            st.write("---")
+                st.write("---")
+        else:
+            st.warning("Please select or enter at least one stock symbol.")
     else:
-        st.warning("Please select or enter at least one stock symbol.")
-else:
-    st.write("👆 Select or enter stock symbols and click 'Analyze Stocks' to begin.")
+        st.write("👆 Select stocks above and click 'Analyze Stocks' to begin.")
+
+# ============================================
+# TAB 2: Earnings Calendar (Card Style UI)
+# ============================================
+with main_tab_earnings:
+    st.caption("📌 Earnings data with stock performance vs NIFTY 50")
+    
+    if st.button("📅 Fetch Earnings Data", key="earnings_btn"):
+        if all_stocks:
+            st.info(f"Fetching earnings for {len(all_stocks)} stock(s)...")
+            
+            progress_bar = st.progress(0)
+            
+            # Fetch all earnings data
+            all_earnings = []
+            for idx, symbol in enumerate(all_stocks):
+                progress_bar.progress((idx + 1) / len(all_stocks))
+                data = fetch_earnings_with_performance(symbol, num_quarters=3)
+                all_earnings.append(data)
+            
+            progress_bar.empty()
+            
+            # Display each stock as a card
+            for data in all_earnings:
+                symbol = data["symbol"]
+                ticker = data.get("ticker", symbol)
+                
+                # Card container
+                with st.container():
+                    # Header row
+                    col_title, col_badge = st.columns([3, 1])
+                    with col_title:
+                        st.markdown(f"### {symbol}")
+                    with col_badge:
+                        st.caption(f"NSE: {symbol}")
+                    
+                    # Next earnings and relative performance
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        next_date = data.get("next_earnings")
+                        if next_date:
+                            date_str = next_date.strftime("%Y-%m-%d") if hasattr(next_date, 'strftime') else str(next_date)
+                            st.markdown(f"**Next Quarterly Earning Date:** `{date_str}`")
+                        else:
+                            st.markdown("**Next Quarterly Earning Date:** `N/A`")
+                    
+                    with col2:
+                        rel_perf = data.get("relative_performance")
+                        if rel_perf is not None:
+                            color = "green" if rel_perf >= 0 else "red"
+                            arrow = "↓" if rel_perf >= 0 else "↑"
+                            st.markdown(f"**Performance vs. NIFTY 50 (last month):** "
+                                       f"<span style='color:{color}'>{rel_perf:+.1f}% {arrow}</span>", 
+                                       unsafe_allow_html=True)
+                        else:
+                            st.markdown("**Performance vs. NIFTY 50 (last month):** `N/A`")
+                    
+                    # Earnings History Table
+                    st.markdown("#### Earnings History")
+                    
+                    history = data.get("history", [])
+                    if history:
+                        # Create table header
+                        header_cols = st.columns([2, 3, 3])
+                        with header_cols[0]:
+                            st.markdown("**EARNING DATE**")
+                        with header_cols[1]:
+                            st.markdown("**STOCK PERFORMANCE (1 WEEK)**")
+                        with header_cols[2]:
+                            st.markdown("**NIFTY 50 PERFORMANCE**")
+                        
+                        # Table rows
+                        for entry in history:
+                            row_cols = st.columns([2, 3, 3])
+                            
+                            with row_cols[0]:
+                                st.write(entry.get("date", "N/A"))
+                            
+                            with row_cols[1]:
+                                stock_perf = entry.get("stock_performance")
+                                if stock_perf is not None:
+                                    color = "green" if stock_perf >= 0 else "red"
+                                    arrow = "↓" if stock_perf >= 0 else "↑"
+                                    st.markdown(f"<span style='color:{color}'>{stock_perf:+.1f}% {arrow}</span>", 
+                                               unsafe_allow_html=True)
+                                else:
+                                    st.write("N/A")
+                            
+                            with row_cols[2]:
+                                nifty_perf = entry.get("nifty_performance")
+                                if nifty_perf is not None:
+                                    color = "green" if nifty_perf >= 0 else "red"
+                                    arrow = "↓" if nifty_perf >= 0 else "↑"
+                                    st.markdown(f"<span style='color:{color}'>{nifty_perf:+.1f}% {arrow}</span>", 
+                                               unsafe_allow_html=True)
+                                else:
+                                    st.write("N/A")
+                    else:
+                        st.write("No earnings history available")
+                    
+                    st.write("---")
+            
+            # Download summary
+            summary_data = []
+            for data in all_earnings:
+                row = {
+                    "Symbol": data["symbol"],
+                    "Next Earnings": data.get("next_earnings"),
+                    "Relative Perf vs NIFTY": data.get("relative_performance")
+                }
+                for i, h in enumerate(data.get("history", [])[:3]):
+                    row[f"Q{i+1} Date"] = h.get("date")
+                    row[f"Q{i+1} Stock Perf"] = h.get("stock_performance")
+                    row[f"Q{i+1} NIFTY Perf"] = h.get("nifty_performance")
+                summary_data.append(row)
+            
+            if summary_data:
+                summary_df = pd.DataFrame(summary_data)
+                csv = summary_df.to_csv(index=False)
+                st.download_button(
+                    label="📥 Download Earnings Summary (CSV)",
+                    data=csv,
+                    file_name="earnings_summary.csv",
+                    mime="text/csv"
+                )
+        else:
+            st.warning("Please select or enter at least one stock symbol above.")
+    else:
+        st.write("👆 Select stocks above and click 'Fetch Earnings Data' to view earnings calendar.")

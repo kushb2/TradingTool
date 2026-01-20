@@ -1,7 +1,8 @@
 # Institutional Footprint Detector v2 - Dependencies
 
 # Data Ingestion
-yfinance>=0.2.36      # Fast OHLC Price History
+yfinance>=0.2.36      # Fast OHLC Price History + Earnings Data
+yahoo_fin>=0.8.9      # Cleaner earnings date API (optional)
 nselib>=0.1.0         # NSE Delivery Percentage Data
 requests>=2.31.0      # Fallback connectivity
 
