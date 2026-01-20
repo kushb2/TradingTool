@@ -3,6 +3,7 @@
 # Data Ingestion
 yfinance>=0.2.36      # Fast OHLC Price History + Earnings Data
 yahoo_fin>=0.8.9      # Cleaner earnings date API (optional)
+nsepython>=1.0.0      # NSE official data (board meetings, earnings)
 nselib>=0.1.0         # NSE Delivery Percentage Data
 requests>=2.31.0      # Fallback connectivity
 
