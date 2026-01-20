@@ -5,9 +5,10 @@ This service fetches historical price data (Open, High, Low, Close, Volume)
 for NSE stocks. We need 60 days of data to calculate 20-day rolling averages
 with enough history for the display period.
 """
-import yfinance as yf
-import pandas as pd
 from datetime import datetime, timedelta
+
+import pandas as pd
+import yfinance as yf
 
 from v2.constants.constants import fetch_price_data_days
 

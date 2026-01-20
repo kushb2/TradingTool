@@ -7,8 +7,8 @@ by analyzing delivery percentage relative to each stock's baseline.
 """
 import streamlit as st
 
-from constants.constants import popular_stocks
-from data.price_service import fetch_raw_price_data, fetch_price_data
+from v2.constants.constants import popular_stocks
+from v2.data.price_service import fetch_raw_price_data, fetch_price_data
 
 # Page config
 st.set_page_config(
