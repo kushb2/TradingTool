@@ -130,6 +130,22 @@ if st.sidebar.button("Analyze Stocks"):
                     # Streamlit Line Chart
                     st.line_chart(chart_data[['Close', '50_DMA']])
 
+                    # --- NEW: INSTITUTIONAL FOOTPRINT SECTION ---
+                    st.markdown("### 👣 Institutional Footprint (Last 10 Days)")
+                    st.info(
+                        "🔍 **Pro Tip:** Look for rows with **Green Price** and **High Volume Spike (> 1.5)**. This often indicates 'Smart Money' accumulation.")
+
+                    footprint_df = selected_stock.get_last_10_days_stats()
+
+                    if footprint_df is not None:
+                        # Streamlit allows us to "Highlight" columns to spot spikes easily
+                        st.dataframe(
+                            footprint_df.style.background_gradient(subset=['Vol_Spike (x)'], cmap='Greens', vmin=1.0,
+                                                                  vmax=3.0)
+                            .format("{:.2f}", subset=['Min', 'Max', 'LTP', 'Vol_Spike (x)', 'Change %']),
+                            use_container_width=True
+                        )
+
                     # Engineering Note:
                     # If 'Close' line crosses above '50_DMA' line from below,
                     # that is often considered a Bullish (Buy) Signal.
