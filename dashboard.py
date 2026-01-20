@@ -4,7 +4,8 @@ from app.services.stock_data_service import StockDataService
 from app.managers.stock_analysis_manager import StockAnalysisManager
 from app.models.stock import Stock
 from app.common.constants import DEFAULT_TICKERS, DASHBOARD_COLUMNS, RSI_HISTORY_DAYS
-from app.helpers.rsi_helper import get_rsi_description
+from app.helpers.rsi_helper import get_smart_rsi_daily_signal
+
 
 # 1. Page Configuration
 st.set_page_config(page_title="Swing Trading Tool", layout="wide")
@@ -49,7 +50,6 @@ if st.sidebar.button("Analyze Stocks"):
                 # Add the ticker name to the analysis dict for the table
                 row = stock.analysis
                 row['Ticker'] = ticker
-                row['RSI_Description'] = get_rsi_description(row['RSI'])
                 results.append(row)
                 processed_stocks.append(stock)
         except Exception as e:
@@ -74,42 +74,45 @@ if st.sidebar.button("Analyze Stocks"):
             if 'Volume_Spike' in res and 'RSI' in res and res['Volume_Spike'] > 1.5 and res['RSI'] < 70:
                 st.write(f"**{res['Ticker']}** is seeing high volume! (Spike: {res['Volume_Spike']}x)")
 
-        # 5. Visual Highlight (Bonus)
-        # Show a chart of RSI values to quickly spot oversold stocks
-        st.subheader(f"RSI {RSI_HISTORY_DAYS}-Day Trend")
+        st.subheader(f"RSI {RSI_HISTORY_DAYS}-Day Trend Analysis")
         for stock in processed_stocks:
-            with st.expander(f"RSI Trend for {stock.ticker}"):
-                if stock.rsi_series is not None and not stock.rsi_series.empty:
-                    rsi_history = stock.rsi_series.tail(RSI_HISTORY_DAYS)
-                    rsi_df = pd.DataFrame({
-                        'Date': rsi_history.index.strftime('%Y-%m-%d'),
-                        'RSI': rsi_history.values.round(2)
-                    })
-                    rsi_df['Description'] = rsi_df['RSI'].apply(get_rsi_description)
+            with st.expander(f"View RSI Trend for {stock.ticker}"):
+                if stock.rsi_series is not None and not stock.rsi_series.empty and len(stock.rsi_series) > RSI_HISTORY_DAYS:
+                    # Get last 6 days to have a "previous" for the first day of the 5-day trend
+                    rsi_history = stock.rsi_series.tail(RSI_HISTORY_DAYS + 1)
+                    
+                    # Prepare data for the DataFrame with smart signals
+                    rsi_data_for_df = []
+                    # Iterate from the 2nd element (index 1) of the 6-day history
+                    for i in range(1, len(rsi_history)):
+                        current_rsi = rsi_history.iloc[i]
+                        previous_rsi = rsi_history.iloc[i-1]
+                        date = rsi_history.index[i]
+                        
+                        description = get_smart_rsi_daily_signal(current_rsi, previous_rsi)
+
+                        rsi_data_for_df.append({
+                            'Date': date.strftime('%Y-%m-%d'),
+                            'RSI': current_rsi.round(2),
+                            'Description': description
+                        })
+                    
+                    rsi_df = pd.DataFrame(rsi_data_for_df)
+                    # Sort by date descending to show newest first
+                    rsi_df = rsi_df.sort_values(by='Date', ascending=False)
 
                     col1, col2 = st.columns(2)
                     with col1:
-                        st.write("RSI Data")
+                        st.write("Raw RSI Data")
                         st.dataframe(rsi_df)
                     with col2:
-                        st.write("RSI Chart")
-                        st.line_chart(rsi_df.set_index('Date')['RSI'])
+                        st.write("RSI Trend Chart")
+                        # Chart also needs to be sorted chronologically for a correct line
+                        chart_df = rsi_df.sort_values(by='Date', ascending=True)
+                        st.line_chart(chart_df.set_index('Date')['RSI'])
                 else:
                     st.write("Not enough data to calculate RSI trend.")
 
-        # Highlight potential buys
-        st.markdown("### 🔔 Potential Signals")
-        for res in results:
-            if 'RSI' in res:
-                rsi_value = res['RSI']
-                rsi_description = get_rsi_description(rsi_value)
-                if rsi_description == "Oversold":
-                    st.success(f"**BUY SIGNAL?** {res['Ticker']} is {rsi_description} (RSI: {rsi_value})")
-                elif rsi_description == "Overbought":
-                    st.warning(f"**SELL SIGNAL?** {res['Ticker']} is {rsi_description} (RSI: {rsi_value})")
-                else:
-                    st.info(f"**NEUTRAL**: {res['Ticker']} RSI is {rsi_value}, which is considered neutral.")
-        
         st.markdown("---")
         st.subheader("📉 Price vs Moving Average (Visual Analysis)")
 

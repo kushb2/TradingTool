@@ -10,4 +10,4 @@ DEFAULT_TICKERS = "ETERNAL.NS"
 RSI_HISTORY_DAYS = 5
 
 # Columns for the dashboard results table
-DASHBOARD_COLUMNS = ['Ticker', 'LTP', 'RSI', 'RSI_Description', 'Volume_Spike', 'PE_Ratio', '50_Day_MA', '52_Week_High', 'Earnings_Date']
+DASHBOARD_COLUMNS = ['Ticker', 'LTP', 'RSI', 'RSI_Signal', 'Signal_Date', 'Volume_Spike', '50_Day_MA']
