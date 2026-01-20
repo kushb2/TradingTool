@@ -11,6 +11,7 @@ class Stock:
     low_52_week: float = 0.0
     sma_50_day: float = 0.0
     rsi: float = 0.0
+    rsi_series: Optional[Any] = None
     volume_spike: float = 0.0
     pe_ratio: Optional[float] = None
     earnings_date: Optional[datetime.date] = None

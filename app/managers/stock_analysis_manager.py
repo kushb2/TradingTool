@@ -16,7 +16,8 @@ class StockAnalysisManager:
         low_52 = history['Low'].min()
         sma_50 = history['Close'].rolling(window=50).mean().iloc[-1]
         ltp = history['Close'].iloc[-1]
-        rsi_val = self._calculate_rsi(history['Close'])
+        rsi_series = self._calculate_rsi(history['Close'])
+        rsi_val = rsi_series.iloc[-1]
 
         current_vol = history['Volume'].iloc[-1]
         avg_vol_20 = history['Volume'].rolling(window=20).mean().iloc[-1]
@@ -48,6 +49,7 @@ class StockAnalysisManager:
             low_52_week=round(low_52, 2),
             sma_50_day=round(sma_50, 2),
             rsi=round(rsi_val, 2),
+            rsi_series=rsi_series,
             volume_spike=round(vol_spike, 2),
             pe_ratio=pe_ratio,
             earnings_date=earnings_date,
@@ -55,7 +57,7 @@ class StockAnalysisManager:
             analysis=analysis
         )
 
-    def _calculate_rsi(self, series: pd.Series, period: int = 14) -> float:
+    def _calculate_rsi(self, series: pd.Series, period: int = 14) -> pd.Series:
         """
         Calculates the Relative Strength Index (RSI).
         """
@@ -65,4 +67,4 @@ class StockAnalysisManager:
 
         rs = gain / loss
         rsi = 100 - (100 / (1 + rs))
-        return rsi.iloc[-1]
+        return rsi

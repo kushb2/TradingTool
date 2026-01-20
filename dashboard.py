@@ -3,7 +3,7 @@ import pandas as pd
 from app.services.stock_data_service import StockDataService
 from app.managers.stock_analysis_manager import StockAnalysisManager
 from app.models.stock import Stock
-from app.common.constants import DEFAULT_TICKERS, DASHBOARD_COLUMNS
+from app.common.constants import DEFAULT_TICKERS, DASHBOARD_COLUMNS, RSI_HISTORY_DAYS
 from app.helpers.rsi_helper import get_rsi_description
 
 # 1. Page Configuration
@@ -76,8 +76,26 @@ if st.sidebar.button("Analyze Stocks"):
 
         # 5. Visual Highlight (Bonus)
         # Show a chart of RSI values to quickly spot oversold stocks
-        st.subheader("RSI Overview (Overbought vs Oversold)")
-        st.bar_chart(df_results.set_index('Ticker')['RSI'])
+        st.subheader(f"RSI {RSI_HISTORY_DAYS}-Day Trend")
+        for stock in processed_stocks:
+            with st.expander(f"RSI Trend for {stock.ticker}"):
+                if stock.rsi_series is not None and not stock.rsi_series.empty:
+                    rsi_history = stock.rsi_series.tail(RSI_HISTORY_DAYS)
+                    rsi_df = pd.DataFrame({
+                        'Date': rsi_history.index.strftime('%Y-%m-%d'),
+                        'RSI': rsi_history.values.round(2)
+                    })
+                    rsi_df['Description'] = rsi_df['RSI'].apply(get_rsi_description)
+
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.write("RSI Data")
+                        st.dataframe(rsi_df)
+                    with col2:
+                        st.write("RSI Chart")
+                        st.line_chart(rsi_df.set_index('Date')['RSI'])
+                else:
+                    st.write("Not enough data to calculate RSI trend.")
 
         # Highlight potential buys
         st.markdown("### 🔔 Potential Signals")
@@ -89,6 +107,8 @@ if st.sidebar.button("Analyze Stocks"):
                     st.success(f"**BUY SIGNAL?** {res['Ticker']} is {rsi_description} (RSI: {rsi_value})")
                 elif rsi_description == "Overbought":
                     st.warning(f"**SELL SIGNAL?** {res['Ticker']} is {rsi_description} (RSI: {rsi_value})")
+                else:
+                    st.info(f"**NEUTRAL**: {res['Ticker']} RSI is {rsi_value}, which is considered neutral.")
         
         st.markdown("---")
         st.subheader("📉 Price vs Moving Average (Visual Analysis)")
