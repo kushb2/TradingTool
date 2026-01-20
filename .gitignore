@@ -1,0 +1,35 @@
+# Operating System Files
+.DS_Store
+Thumbs.db
+*.swp
+
+# Editor/IDE Directories
+.idea/
+.vscode/
+*.sublime-workspace
+
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+
+# Python Bytecode
+__pycache__/
+*.py[cod]
+
+# Virtual Environments
+venv/
+env/
+.venv/
+.env/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
