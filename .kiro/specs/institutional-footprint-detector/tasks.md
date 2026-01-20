@@ -6,10 +6,10 @@
   - [x] 1.3 Create requirements_v2.txt with all dependencies
   - [x] 1.4 TEST: Run `streamlit run v2/run.py` - should show empty dashboard with input field
 
-- [-] 2. Price Data Service (yfinance)
+- [x] 2. Price Data Service (yfinance)
   - [x] 2.1 Create v2/data/price_service.py with `fetch_price_data(symbol, days=60)`
   - [x] 2.2 Update dashboard to call price_service and display raw DataFrame
-  - [ ] 2.3 TEST: Enter "RELIANCE.NS" - should show 60 days of OHLC data in table
+  - [x] 2.3 TEST: Enter "RELIANCE.NS" - should show 60 days of OHLC data in table
 
 - [ ] 3. NSE Delivery Data Service
   - [ ] 3.1 Create v2/data/nse_service.py with `fetch_delivery_data(symbol, days=60)`
@@ -30,7 +30,10 @@
   - [ ] 5.1 Create formatted 15-day table in dashboard (Date, LTP, Change%, Volume, Vol_Ratio, Delivery%, Rel_Delivery_Ratio)
   - [ ] 5.2 Add row highlighting where Relative_Delivery_Ratio > 1.5 (green background)
   - [ ] 5.3 Add tooltips explaining each column header
-  - [ ] 5.4 TEST: Visually verify highlighting works on a stock with delivery spikes
+  - [ ] 5.4 Add color gradient for trend visualization: green shades for up/high values, red shades for down/low (darker = stronger move)
+  - [ ] 5.5 Add Daily Change % column (today vs yesterday) with color coding
+  - [ ] 5.6 Add Change vs Average % column (today vs 20-day avg) with color coding
+  - [ ] 5.7 TEST: Visually verify highlighting and color gradients show trends at a glance
 
 - [ ] 6. Phase 1 - Alert Detection
   - [ ] 6.1 Create v2/engine/detector.py with `detect_phase1_alerts(metrics_df)`
