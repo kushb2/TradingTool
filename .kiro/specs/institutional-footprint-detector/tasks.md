@@ -13,10 +13,10 @@
 
 - [-] 2A. Alpha Vantage Earnings Integration
   - [x] 2A.1 Create v2/data/alphavantage_service.py with API key config
-  - [ ] 2A.2 Implement `fetch_earnings_calendar(symbol)` - get next earnings date
-  - [ ] 2A.3 Implement `fetch_earnings_history(symbol)` - get historical EPS with surprise data
-  - [ ] 2A.4 Add "Earnings" tab in dashboard showing: next earnings date, recent EPS history, analyst estimates
-  - [ ] 2A.5 Add download button for earnings report data (CSV export)
+  - [x] 2A.2 Implement `fetch_earnings_calendar(symbol)` - get next earnings date
+  - [x] 2A.3 Implement `fetch_earnings_history(symbol)` - get historical EPS with surprise data
+  - [x] 2A.4 Add "Earnings" tab in dashboard showing: next earnings date, recent EPS history, analyst estimates
+  - [x] 2A.5 Add download button for earnings report data (CSV export)
   - [ ] 2A.6 TEST: Enter "IBM" - should show next earnings date and historical EPS
 
 - [ ] 3. NSE Delivery Data Service
