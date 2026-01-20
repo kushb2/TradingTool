@@ -11,7 +11,7 @@ import pandas as pd
 from v2.constants.constants import popular_stocks
 from v2.data.price_service import fetch_raw_price_data, fetch_price_data
 from v2.data.earnings_service import (
-    fetch_next_earnings_date as fetch_next_earnings_date_from_nse,
+    fetch_next_earnings_date,
     fetch_earnings_history,
     fetch_company_info,
     fetch_earnings_with_performance,
@@ -136,15 +136,12 @@ with main_tab_earnings:
                     col1, col2 = st.columns(2)
                     
                     with col1:
-                        # Directly fetch the next earnings date using the NSE-specific function
-                        # This bypasses the date returned by fetch_earnings_with_performance
-                        # to ensure we are displaying the most direct NSE result
-                        next_date = fetch_next_earnings_date_from_nse(symbol)
+                        next_date = data.get("next_earnings")
                         if next_date:
-                            date_str = next_date.strftime("%Y-%m-%d")
-                            st.markdown(f"**Next Quarterly Earning Date (NSE):** `{date_str}`")
+                            date_str = next_date.strftime("%Y-%m-%d") if hasattr(next_date, 'strftime') else str(next_date)
+                            st.markdown(f"**Next Quarterly Earning Date:** `{date_str}`")
                         else:
-                            st.markdown("**Next Quarterly Earning Date (NSE):** `N/A`")
+                            st.markdown("**Next Quarterly Earning Date:** `N/A`")
                     
                     with col2:
                         rel_perf = data.get("relative_performance")

@@ -25,7 +25,7 @@ except ImportError:
 
 # Try importing nsepython (for NSE board meetings / earnings)
 try:
-    from nsepython import nsefetch
+    from nsepython import nse_eq, nse_past_results
     NSEPYTHON_AVAILABLE = True
 except ImportError:
     NSEPYTHON_AVAILABLE = False
@@ -63,94 +63,119 @@ def _is_us_stock(symbol: str) -> bool:
     return symbol in us_stocks
 
 
-def _fetch_nse_board_meetings(symbol: str) -> Optional[datetime]:
-    """
-    Fetch next board meeting date from NSE using a direct API call.
-    
-    Args:
-        symbol: NSE stock symbol without suffix (e.g., "RELIANCE", "TCS")
-    
-    Returns:
-        datetime of next board meeting, or None if not available
-    """
-    if not NSEPYTHON_AVAILABLE:
-        return None
-    
-    try:
-        clean_symbol = symbol.upper().replace(".NS", "").replace(".BSE", "")
-        print(f"[DEBUG][NSE] Fetching Corporate Info for {clean_symbol} via nsefetch")
-        
-        url = f"https://www.nseindia.com/api/quote-equity?symbol={clean_symbol}&section=corp_info"
-        data = nsefetch(url)
 
-        # Log the raw response as requested
-        print(f"[DEBUG][NSE] Raw response from nsefetch('{url}'):")
-        print(data)
-
-        if 'corporate' in data and 'boardMeetings' in data['corporate']:
-            meetings = data['corporate']['boardMeetings']
-            
-            if not meetings:
-                print("[DEBUG][NSE] No upcoming meetings scheduled.")
-                return None
-
-            # Find the next meeting with earnings-related purpose
-            earnings_keywords = ['result', 'financial', 'earnings', 'quarterly', 'annual', 'audited', 'unaudited']
-            future_meetings = []
-
-            for meeting in meetings:
-                purpose = meeting.get('purpose', '').lower()
-                date_str = meeting.get('purposedate')
-
-                if any(keyword in purpose for keyword in earnings_keywords) and date_str:
-                    try:
-                        meeting_date = pd.to_datetime(date_str, format='%d-%b-%Y')
-                        if meeting_date >= pd.Timestamp.now().normalize():
-                            future_meetings.append(meeting_date)
-                    except Exception as e:
-                        print(f"[DEBUG] Error parsing NSE board meeting date '{date_str}': {e}")
-            
-            if future_meetings:
-                next_meeting_date = min(future_meetings)
-                print(f"[DEBUG][NSE] Found next earnings-related board meeting: {next_meeting_date}")
-                return next_meeting_date
-            else:
-                print("[DEBUG][NSE] No future earnings-related meetings found.")
-                return None
-        else:
-            print("[DEBUG][NSE] No 'corporate' or 'boardMeetings' key found in response.")
-            return None
-            
-    except Exception as e:
-        print(f"[DEBUG] nsefetch failed for {symbol}: {e}")
-        return None
 
 
 def fetch_next_earnings_date(symbol: str) -> Optional[datetime]:
     """
-    Fetch the next earnings date for a stock using nsepython.
-    This method is intended for NSE stocks only.
+    Fetch the next earnings date for a stock.
     
     Args:
-        symbol: Stock symbol (e.g., "RELIANCE", "TCS")
+        symbol: Stock symbol (e.g., "RELIANCE", "TCS", "AAPL")
     
     Returns:
         datetime of next earnings, or None if not available
     """
+    ticker_symbol = _get_ticker_symbol(symbol)
     is_us = _is_us_stock(symbol)
-    print(f"\n[DEBUG] Fetching next earnings date for {symbol} (US stock: {is_us})")
+    print(f"\n[DEBUG] Fetching next earnings date for {symbol} (ticker: {ticker_symbol}, US stock: {is_us})")
 
-    # For NSE stocks, use nsepython (official NSE data)
-    if not is_us and NSEPYTHON_AVAILABLE:
-        print("[DEBUG] Trying nsepython.nse_eq() for board meetings")
-        nse_date = _fetch_nse_board_meetings(symbol)
-        if nse_date:
-            print(f"[DEBUG] Found earnings date from NSE board meetings: {nse_date}")
-            return nse_date
-    elif is_us:
-        print("[DEBUG] Skipping NSE check for US stock.")
+    # Method 1: Try Alpha Vantage (US stocks only)
+    if is_us:
+        try:
+            print("[DEBUG] Trying alphavantage_service.fetch_earnings_calendar()")
+            # Alpha Vantage uses uppercase symbols without suffix
+            av_df = fetch_av_earnings_calendar(symbol.upper(), horizon="12month") 
+            print(f"[DEBUG] Alpha Vantage raw response (DataFrame):\n{av_df}")
 
-    print(f"[DEBUG] Could not find next earnings date for {symbol} via nsepython.")
+            if not av_df.empty:
+                # Alpha Vantage returns a DataFrame with 'reportDate' column
+                # Filter for the symbol, sort by reportDate, take the first future date
+                
+                # Ensure 'reportDate' is datetime and convert to timezone-naive for comparison
+                # assuming Alpha Vantage dates are in UTC or local to market, and we want to compare with local current time
+                av_df['reportDate'] = pd.to_datetime(av_df['reportDate']).dt.tz_localize(None)
+                
+                # Filter for future dates
+                future_earnings = av_df[av_df['reportDate'] >= datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)]
+                
+                if not future_earnings.empty:
+                    next_date = future_earnings.sort_values(by='reportDate')['reportDate'].iloc[0]
+                    print(f"[DEBUG] Found next earnings date from Alpha Vantage: {next_date}")
+                    return next_date
+                else:
+                    print("[DEBUG] Alpha Vantage found no future earnings dates.")
+            else:
+                print("[DEBUG] Alpha Vantage returned an empty DataFrame.")
+        except Exception as e:
+            print(f"[DEBUG] Alpha Vantage failed for {symbol}: {e}")
+
+    # Method 2: Try yahoo_fin (cleaner API)
+    if YAHOO_FIN_AVAILABLE:
+        try:
+            print("[DEBUG] Trying yahoo_fin.stock_info.get_next_earnings_date()")
+            date = si.get_next_earnings_date(ticker_symbol)
+            print(f"[DEBUG] yahoo_fin raw response: {date}")
+            if date:
+                # The date from yahoo_fin is often a datetime object already
+                return pd.to_datetime(date)
+        except Exception as e:
+            print(f"[DEBUG] yahoo_fin failed for {symbol}: {e}")
+    
+    # Method 3: Fall back to yfinance calendar
+    try:
+        print("[DEBUG] Trying yfinance.Ticker.calendar")
+        ticker = yf.Ticker(ticker_symbol)
+        calendar = ticker.calendar
+        
+        print("[DEBUG] yfinance calendar raw response:")
+        print(calendar)
+
+        if calendar is None:
+            # If calendar is None, we can't proceed
+            pass
+
+        elif isinstance(calendar, dict):
+            # Handle dictionary response
+            if "Earnings Date" in calendar:
+                earnings_dates = calendar["Earnings Date"]
+                if isinstance(earnings_dates, list) and len(earnings_dates) > 0:
+                    date = pd.to_datetime(earnings_dates[0])
+                    print(f"[DEBUG] Found earnings date in yfinance calendar (dict): {date}")
+                    return date
+                elif isinstance(earnings_dates, (str, datetime, pd.Timestamp)):
+                    date = pd.to_datetime(earnings_dates)
+                    print(f"[DEBUG] Found earnings date in yfinance calendar (dict scalar): {date}")
+                    return date
+
+        elif isinstance(calendar, pd.DataFrame) and not calendar.empty:
+            # Handle DataFrame response
+            if "Earnings Date" in calendar.index:
+                earnings_dates = calendar.loc["Earnings Date"]
+                if isinstance(earnings_dates, pd.Series) and len(earnings_dates) > 0:
+                    # It's a series, could contain a scalar or a list
+                    first_val = earnings_dates.iloc[0]
+                    if isinstance(first_val, list) and len(first_val) > 0:
+                        date = pd.to_datetime(first_val[0])
+                        print(f"[DEBUG] Found earnings date in yfinance calendar series (unpacked list): {date}")
+                        return date
+                    elif isinstance(first_val, (str, datetime, pd.Timestamp)):
+                        date = pd.to_datetime(first_val)
+                        print(f"[DEBUG] Found earnings date in yfinance calendar series (scalar): {date}")
+                        return date
+                elif isinstance(earnings_dates, list) and len(earnings_dates) > 0:
+                    date = pd.to_datetime(earnings_dates[0])
+                    print(f"[DEBUG] Found earnings date in yfinance calendar (direct list): {date}")
+                    return date
+                elif isinstance(earnings_dates, (str, datetime, pd.Timestamp)):
+                    date = pd.to_datetime(earnings_dates)
+                    print(f"[DEBUG] Found earnings date in yfinance calendar scalar: {date}")
+                    return date
+
+    except Exception as e:
+        print(f"[DEBUG] yfinance calendar failed for {symbol}: {e}")
+    
+    print(f"[DEBUG] Could not find next earnings date for {symbol}")
     return None
 
 
